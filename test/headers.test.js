@@ -3,7 +3,7 @@
 const {equal}        = require('node:assert')
 const {readFileSync} = require('node:fs')
 const {join}         = require('node:path')
-const {readHeaders}  = require('../utar')
+const {readHeaders}  = require('../index')
 
 const filepath = join(__dirname, 'data/holder-nix.tar')
 const tarball  = readFileSync(filepath)

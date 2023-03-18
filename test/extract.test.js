@@ -1,7 +1,7 @@
 'use strict'
 
 const {join}                     = require('node:path')
-const {extractEntries}           = require('../utar')
+const {extractEntries}           = require('../index')
 const {existsSync, readFileSync} = require('node:fs')
 
 const tarPath     = join(__dirname, 'data/holder-win.tar')
