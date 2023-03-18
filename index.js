@@ -161,10 +161,11 @@ function getCheckSum(tar, offset)
 {
 	let sum = 0
 
-	for (let i = 0; i < BLOCK_LENGTH; ++i)
+	for (let i = 0; i < BLOCK_LENGTH; ++i) {
 		sum += i >= CHECK_SUM_OFFSET && i < CHECK_SUM_OFFSET + CHECK_SUM_LENGTH
 			? 32 // The checksum field is considered as filled with spaces (ascii 32)
 			: tar[offset + i]
+	}
 
 	return sum
 }
