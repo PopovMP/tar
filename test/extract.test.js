@@ -1,13 +1,14 @@
 'use strict'
 
 const {join}                     = require('node:path')
-const {extractEntries}           = require('../index')
 const {existsSync, readFileSync} = require('node:fs')
 
-const tarPath     = join(__dirname, 'data/holder-win.tar')
+const {extract} = require('../index')
+
+const tarPath     = join(__dirname, 'data/holder.tar')
 const destination = join(__dirname, 'data')
 
-extract(tarPath, destination)
+extractArchive(tarPath, destination)
 
 /**
  * Extracts all files from a tar archive
@@ -17,7 +18,7 @@ extract(tarPath, destination)
  *
  * @return {void}
  */
-function extract(filepath, destination)
+function extractArchive(filepath, destination)
 {
 	if (!existsSync(filepath))
 		throw new Error(`cannot find tar archive: ${filepath}`)
@@ -27,5 +28,5 @@ function extract(filepath, destination)
 
 	const tarball = readFileSync(filepath)
 
-	extractEntries(tarball, destination)
+	extract(tarball, destination)
 }

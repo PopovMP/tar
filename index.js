@@ -1,5 +1,45 @@
 'use strict'
 
+const {join}                                 = require('node:path')
+const {existsSync, mkdirSync, writeFileSync} = require('node:fs')
+
+/**
+ * @typedef {NodeModule}
+ *
+ * Wikipedia: tar (computing) : https://en.wikipedia.org/wiki/Tar_(computing)
+ * GNU: Basic Tar Format: https://www.gnu.org/software/tar/manual/html_node/Standard.html
+ * IBM zOS: tar - Format of tar archives: https://www.ibm.com/docs/en/zos/2.5.0?topic=formats-tar-format-tar-archives
+ */
+
+/**
+ * @typedef {Object} TarHeader
+ *
+ * The 'prefix' field provides an opportunity to input information about the pathname if it is too long
+ * for the allotted 100 bytes. If the prefix field is not empty, the reader will prepend the prefix value
+ * and a '/' character to the name field to create the full pathname.
+ *
+ * The checksum is calculated by taking the sum of the unsigned byte values of the header record with the
+ * eight checksum bytes taken to be ASCII spaces (decimal value 32).
+ * It is stored as a six digit octal number with leading zeroes followed by a NUL and then a space.
+ *
+ * @property {string} name     - entry name  (ASCII 100b)
+ * @property {number} mode     - access mode (Octal  8b as a null-terminated string)
+ * @property {number} uid      - user ID     (Octal  8b as a null-terminated string)
+ * @property {number} gid      - group ID    (Octal  8b as a null-terminated string)
+ * @property {number} size     - entry size  (Octal 12b as a null-terminated string)
+ * @property {number} mtime    - modify time - seconds from Epoch (Octal 12b as a null-terminated string)
+ * @property {number} checksum - header check sum (Octal 12b as a null-terminated string)
+ * @property {string} typeflag - entry type: (ASCII 1b); '0' - file, '1' - hard link, '2' - symbolic link, '5' - directory
+ * @property {string} linkname - linked file name: (ASCII 100b null-terminated string)
+ * @property {string} magic    - 'ustar' + null (ASCII 6b null-terminated string)
+ * @property {string} version  - '00'
+ * @property {string} uname    - user  name (ASCII 32b null-terminated string)
+ * @property {string} gname    - group name (ASCII 32b null-terminated string)
+ * @property {string} devmajor - devise minor number (Octal  8b as a null-terminated string)
+ * @property {string} devminor - device major number (Octal  8b as a null-terminated string)
+ * @property {string} prefix   - prefix (ASCII 155b)
+ */
+
 /**
  * @typedef {Object} TarHeaderField
  *
@@ -9,30 +49,6 @@
  * @property {string} encoding
  */
 
-/**
- * @typedef {Object} TarHeader
- *
- * @property {string} name
- * @property {number} mode
- * @property {number} uid
- * @property {number} gid
- * @property {number} size
- * @property {number} mTime
- * @property {number} checksum
- * @property {string} typeflag
- * @property {string} linkname
- * @property {string} magic
- * @property {string} version
- * @property {string} uname
- * @property {string} gname
- * @property {string} devmajor
- * @property {string} devminor
- * @property {string} prefix
- */
-
-const {join}                                 = require('node:path')
-const {existsSync, mkdirSync, writeFileSync} = require('node:fs')
-
 /** @type {TarHeaderField[]} */
 const HEADER_FIELDS = [
 	{name: 'name'    , offset:   0, length: 100, encoding: 'ascii'},
@@ -40,7 +56,7 @@ const HEADER_FIELDS = [
 	{name: 'uid'     , offset: 108, length:   8, encoding: 'octal'},
 	{name: 'gid'     , offset: 116, length:   8, encoding: 'octal'},
 	{name: 'size'    , offset: 124, length:  12, encoding: 'octal'},
-	{name: 'mTime'   , offset: 136, length:  12, encoding: 'octal'},
+	{name: 'mtime'   , offset: 136, length:  12, encoding: 'octal'},
 	{name: 'checksum', offset: 148, length:   8, encoding: 'octal'},
 	{name: 'typeflag', offset: 156, length:   1, encoding: 'ascii'},
 	{name: 'linkname', offset: 157, length: 100, encoding: 'ascii'},
@@ -72,11 +88,13 @@ function readHeaders(tar)
 
 	let offset = 0
 	while (true) {
+		/** @type {TarHeader} */
 		const header = parseHeader(tar, offset)
 
-		if (header.typeflag !== REG_TYPE && header.typeflag !== DIR_TYPE) break
-		const checksum = getCheckSum(tar, offset)
+		if (header.typeflag !== REG_TYPE && header.typeflag !== DIR_TYPE)
+			break // Reached the final empty block
 
+		const checksum = getCheckSum(tar, offset)
 		if (checksum !== header.checksum)
 			throw new Error(`wrong checksum of: ${header.name}`)
 
@@ -99,54 +117,34 @@ function readHeaders(tar)
  */
 function parseHeader(tar, offset)
 {
+	/** @type {TarHeader} */
 	const header = {}
 
-	for (const field of HEADER_FIELDS) {
-		const name  = field.name
-		const bytes = getBytes(tar, offset + field.offset, field.length)
-		const value = parseFiled(field, bytes)
-		if (typeof value === 'string' || typeof value === 'number')
-			header[name] = value
-	}
+	for (const /** @type {TarHeaderField} */ field of HEADER_FIELDS)
+		header[field.name] = parseFiledValue(tar, offset, field)
 
 	return header
 }
 
 /**
- * Gets non-null bytes
- *
- * @param {Buffer} tar
- * @param {number} offset
- * @param {number} length
- *
- * @return {Buffer}
- */
-function getBytes(tar, offset, length)
-{
-	let end = offset
-
-	while (tar[end] !== 0)
-		end += 1
-
-	return tar.subarray(offset, end)
-}
-
-/**
  * Parses a header field
  *
+ * @param {Buffer}         tar
+ * @param {number}         offset
  * @param {TarHeaderField} field
- * @param {Buffer}         bytes
  *
- * @return {number|string|undefined}
+ * @return {number|string}
  */
-function parseFiled(field, bytes)
+function parseFiledValue(tar, offset, field)
 {
-	const textValue = bytes.toString()
+	const from = offset + field.offset
+	let   to   = from
+	while (tar[to] > 0 && to < from + field.length)
+		to += 1
 
-	if (field.encoding === 'octal')
-		return parseInt(textValue, 8)
+	const textValue = tar.subarray(from, to).toString()
 
-	return textValue
+	return field.encoding === 'octal' ? parseInt(textValue, 8) : textValue
 }
 
 /**
@@ -178,28 +176,35 @@ function getCheckSum(tar, offset)
  *
  * @return {void}
  */
-function extractEntries(tar, destination)
+function extract(tar, destination)
 {
+	/** @type {TarHeader[]} */
 	const headers = readHeaders(tar)
 
-	let offset = 0
+	let headerOffset = 0
 	for (const header of headers) {
-		const entryPath = join(destination, header.name)
+		const entryPath = join(destination, header.prefix, header.name)
 
-		if (header.typeflag === DIR_TYPE) {
-			if (!existsSync(entryPath))
-				mkdirSync(entryPath)
-		}
-		else if (header.typeflag === REG_TYPE) {
-			const entryOffset = offset + BLOCK_LENGTH
-			writeFileSync(entryPath, tar.subarray(entryOffset, entryOffset + header.size))
+		switch (header.typeflag) {
+			case DIR_TYPE: // Create directory if it does not exist
+				if (!existsSync(entryPath))
+					mkdirSync(entryPath)
+				break
+			case REG_TYPE: // Create/overwrite file
+				const entryOffset = headerOffset + BLOCK_LENGTH
+				const content     = tar.subarray(entryOffset, entryOffset + header.size)
+				writeFileSync(entryPath, content)
+				break
+			default:
+				throw new Error(`not supported entry typeflag: ${header.typeflag}`)
 		}
 
-		offset += (Math.ceil(header.size / BLOCK_LENGTH) + 1) * BLOCK_LENGTH
+		// Jump to the next header
+		headerOffset += (Math.ceil(header.size / BLOCK_LENGTH) + 1) * BLOCK_LENGTH
 	}
 }
 
 module.exports = {
 	readHeaders,
-	extractEntries,
+	extract,
 }
