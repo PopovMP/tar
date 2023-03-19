@@ -1,7 +1,7 @@
 'use strict'
 
-const {join}                                 = require('node:path')
-const {existsSync, mkdirSync, writeFileSync} = require('node:fs')
+const {join}  = require('node:path')
+const {existsSync, mkdirSync, readFileSync, writeFileSync} = require('node:fs')
 
 /**
  * @typedef {NodeModule}
@@ -204,7 +204,120 @@ function extract(tar, destination)
 	}
 }
 
+/**
+ * Creates and populates a tarball
+ *
+ * @param {string}       baseDir - parent dir of archived folder
+ * @param {EntryStats[]} entryStats
+ *
+ * @return {Buffer}
+ */
+function create(baseDir, entryStats)
+{
+	const tar = makeBuffer(entryStats)
+
+	let headerOffset = 0
+	for (const stat of entryStats) {
+		setHeader(tar, headerOffset, stat)
+
+		if (stat.typeflag === REG_TYPE) {
+			const entryPath = join(baseDir, stat.prefix, stat.name)
+			tar.set(readFileSync(entryPath), headerOffset + BLOCK_LENGTH)
+		}
+
+		// Jump to the next header
+		headerOffset += (Math.ceil(stat.size / BLOCK_LENGTH) + 1) * BLOCK_LENGTH
+	}
+
+	return tar
+}
+
+/**
+ * Makes an empty tar with the required size
+ *
+ * @param {EntryStats[]} entryStats
+ *
+ * @return {Buffer}
+ */
+function makeBuffer(entryStats)
+{
+	let size = 2 * BLOCK_LENGTH // Two empty blocks at the end of the tarball
+	for (const stat of entryStats)
+		size += (Math.ceil(stat.size / BLOCK_LENGTH) + 1) * BLOCK_LENGTH
+
+	return Buffer.alloc(size, 0, 'binary')
+}
+
+/**
+ * Sets a header to the tarball
+ *
+ * @param {Buffer}     tar
+ * @param {number}     offset
+ * @param {EntryStats} stats
+ *
+ * @return {void}
+ */
+function setHeader(tar, offset, stats)
+{
+	// name
+	setAscii(tar, offset, stats.name.replaceAll('\\', '/'))
+	// mode
+	setAscii(tar, offset + 100, '0000775')
+	// uid
+	setAscii(tar, offset + 108, '0001751')
+	// gid
+	setAscii(tar, offset + 116, '0001750')
+	// size
+	setOctal(tar, offset + 124, stats.size, 11)
+	// mtime
+	setOctal(tar, offset + 136, Math.round(stats.mtime/1000), 11)
+	// typeflag
+	setAscii(tar, offset + 156, stats.typeflag)
+	// magic
+	setAscii(tar, offset + 257, 'ustar')
+	// version
+	setAscii(tar, offset + 263, '00')
+	// devmajor
+	setAscii(tar, offset + 329, '0000000')
+	// devminor
+	setAscii(tar, offset + 337, '0000000')
+	// prefix
+	setAscii(tar, offset + 345, stats.prefix.replaceAll('\\', '/'))
+	// checksum
+	setOctal(tar, offset + 148, getCheckSum(tar, offset), 6)
+	setAscii(tar, offset + 154, '\0 ')
+}
+
+/**
+ * Sets an octal value as 8bit ASCII
+ *
+ * @param {Buffer} tar
+ * @param {number} offset
+ * @param {number} val
+ * @param {number} len
+ */
+function setOctal(tar, offset, val, len)
+{
+	const text =  val.toString(8).padStart(len, '0')
+	setAscii(tar, offset, text)
+}
+
+/**
+ * Sets an ASCII text
+ *
+ * @param {Buffer} tar
+ * @param {number} offset
+ * @param {string} text
+ */
+
+function setAscii(tar, offset, text)
+{
+	for (let i = 0; i < text.length; ++i)
+		tar.writeInt8(text.charCodeAt(i), offset+i)
+}
+
 module.exports = {
 	readHeaders,
 	extract,
+	create,
 }
