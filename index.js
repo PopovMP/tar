@@ -99,10 +99,10 @@ function createArchive(tarPath, target)
 	if (!existsSync(target))
 		throw new Error(`cannot open directory: ${target}`)
 
-	const baseDir    = dirname(target)
-	const entryPaths = getEntryPaths(target)
-	const entryStats = getEntryStats(baseDir, entryPaths)
-	const tarball    = create(baseDir, entryStats)
+	const /** @type {string}       */ baseDir    = dirname(target)
+	const /** @type {string[]}     */ entryPaths = getEntryPaths(target)
+	const /** @type {EntryStats[]} */ entryStats = getEntryStats(baseDir, entryPaths)
+	const /** @type {Buffer}       */ tarball    = create(baseDir, entryStats)
 
 	writeFileSync(tarPath, tarball)
 }
@@ -123,7 +123,7 @@ function extractArchive(tarPath, destination)
 	if (!existsSync(destination))
 		throw new Error(`cannot open destination directory: ${destination}`)
 
-	const tarball = readFileSync(tarPath)
+	const /** @type {Buffer} */ tarball = readFileSync(tarPath)
 
 	extract(tarball, destination)
 }
@@ -298,7 +298,7 @@ function makeBuffer(entryStats)
 	for (const stat of entryStats)
 		size += (Math.ceil(stat.size / BLOCK_LENGTH) + 1) * BLOCK_LENGTH
 
-	return Buffer.alloc(size, 0, 'binary')
+	return Buffer.alloc(size)
 }
 
 /**
@@ -317,9 +317,9 @@ function setHeader(tar, offset, stats)
 	// mode
 	setAscii(tar, offset + 100, '0000775')
 	// uid
-	setAscii(tar, offset + 108, '0001751')
+	setAscii(tar, offset + 108, '0000000')
 	// gid
-	setAscii(tar, offset + 116, '0001750')
+	setAscii(tar, offset + 116, '0000000')
 	// size
 	setOctal(tar, offset + 124, stats.size, 11)
 	// mtime
@@ -338,7 +338,7 @@ function setHeader(tar, offset, stats)
 	setAscii(tar, offset + 345, stats.prefix.replaceAll('\\', '/'))
 	// checksum
 	setOctal(tar, offset + 148, getCheckSum(tar, offset), 6)
-	setAscii(tar, offset + 154, '\0 ')
+	setAscii(tar, offset + 155, ' ')
 }
 
 /**
@@ -351,7 +351,7 @@ function setHeader(tar, offset, stats)
  */
 function setOctal(tar, offset, val, len)
 {
-	const text =  val.toString(8).padStart(len, '0')
+	const text = val.toString(8).padStart(len, '0')
 	setAscii(tar, offset, text)
 }
 
@@ -366,7 +366,7 @@ function setOctal(tar, offset, val, len)
 function setAscii(tar, offset, text)
 {
 	for (let i = 0; i < text.length; ++i)
-		tar.writeInt8(text.charCodeAt(i), offset+i)
+		tar.writeUInt8(text.charCodeAt(i), offset+i)
 }
 
 /**
