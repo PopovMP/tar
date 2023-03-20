@@ -38,7 +38,7 @@ const {existsSync, mkdirSync, opendirSync, statSync, readFileSync, writeFileSync
  * @property {number} gid      - group ID    (Octal  8b as a null-terminated string)
  * @property {number} size     - entry size  (Octal 12b as a null-terminated string)
  * @property {number} mtime    - modify time - seconds from Epoch (Octal 12b as a null-terminated string)
- * @property {number} checksum - header check sum (Octal 12b as a null-terminated string)
+ * @property {number} checksum - header check sum (Octal 7b as a null-terminated string + space)
  * @property {string} typeflag - entry type: (ASCII 1b); '0' - file, '1' - hard link, '2' - symbolic link, '5' - directory
  * @property {string} linkname - linked file name: (ASCII 100b null-terminated string)
  * @property {string} magic    - 'ustar' + null (ASCII 6b null-terminated string)
@@ -154,10 +154,22 @@ function readHeaders(tar)
 		headers.push(header)
 
 		// Jump to the next header
-		offset += (Math.ceil(header.size / BLOCK_LENGTH) + 1) * BLOCK_LENGTH
+		offset += getOffsetDelta(header.size)
 	}
 
 	return headers
+}
+
+/**
+ * Gets the offset delta depending on the entry size
+ *
+ * @param {number} size - entry size
+ *
+ * @return {number}
+ */
+function getOffsetDelta(size)
+{
+	return (Math.ceil(size / BLOCK_LENGTH) + 1) * BLOCK_LENGTH
 }
 
 /**
@@ -253,7 +265,7 @@ function extract(tar, destination)
 		}
 
 		// Jump to the next header
-		headerOffset += (Math.ceil(header.size / BLOCK_LENGTH) + 1) * BLOCK_LENGTH
+		headerOffset += getOffsetDelta(header.size)
 	}
 }
 
@@ -267,19 +279,20 @@ function extract(tar, destination)
  */
 function create(baseDir, entryStats)
 {
-	const tar = makeBuffer(entryStats)
+	const size = calculateTarSize(entryStats)
+	const tar  = Buffer.alloc(size)
 
-	let headerOffset = 0
+	let offset = 0
 	for (const stat of entryStats) {
-		setHeader(tar, headerOffset, stat)
+		setHeader(tar, offset, stat)
 
 		if (stat.typeflag === REG_TYPE) {
 			const entryPath = join(baseDir, stat.prefix, stat.name)
-			tar.set(readFileSync(entryPath), headerOffset + BLOCK_LENGTH)
+			tar.set(readFileSync(entryPath), offset + BLOCK_LENGTH)
 		}
 
 		// Jump to the next header
-		headerOffset += (Math.ceil(stat.size / BLOCK_LENGTH) + 1) * BLOCK_LENGTH
+		offset += getOffsetDelta(stat.size)
 	}
 
 	return tar
@@ -290,15 +303,15 @@ function create(baseDir, entryStats)
  *
  * @param {EntryStats[]} entryStats
  *
- * @return {Buffer}
+ * @return {number}
  */
-function makeBuffer(entryStats)
+function calculateTarSize(entryStats)
 {
 	let size = 2 * BLOCK_LENGTH // Two empty blocks at the end of the tarball
 	for (const stat of entryStats)
-		size += (Math.ceil(stat.size / BLOCK_LENGTH) + 1) * BLOCK_LENGTH
+		size += getOffsetDelta(stat.size)
 
-	return Buffer.alloc(size)
+	return size
 }
 
 /**
@@ -324,6 +337,8 @@ function setHeader(tar, offset, stats)
 	setOctal(tar, offset + 124, stats.size, 11)
 	// mtime
 	setOctal(tar, offset + 136, Math.round(stats.mtime/1000), 11)
+	// checksum - prefill
+	setAscii(tar, offset + 148, '        ')
 	// typeflag
 	setAscii(tar, offset + 156, stats.typeflag)
 	// magic
@@ -336,9 +351,11 @@ function setHeader(tar, offset, stats)
 	setAscii(tar, offset + 337, '0000000')
 	// prefix
 	setAscii(tar, offset + 345, stats.prefix.replaceAll('\\', '/'))
-	// checksum
-	setOctal(tar, offset + 148, getCheckSum(tar, offset), 6)
-	setAscii(tar, offset + 155, ' ')
+
+	// Set final checksum
+	const checksum = getCheckSum(tar, offset)
+	setOctal(tar, offset + 148, checksum, 6)
+	tar.writeUInt8(0, offset + 154)
 }
 
 /**
@@ -446,9 +463,9 @@ function getEntryStats(baseDir, entryPaths)
 
 		return {
 			name    : name,
-			typeflag: isDir ? '5' : '0',
+			typeflag: isDir ? DIR_TYPE : REG_TYPE,
 			size    : isDir ? 0 : stats.size,
-			mtime   : +stats.mtime,
+			mtime   : stats.mtime.getTime(),
 			prefix  : prefix,
 		}
 	})
