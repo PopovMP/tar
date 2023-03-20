@@ -2,6 +2,12 @@
 
 A Nodejs utility for creating and extracting __tar__ archives.
 
+## Purpose
+
+To be used programmatically for creating and extracting updates in tar format.
+
+The created tar can be compressed or decompressed by the Nodejs zlib. 
+
 ## Goals
 
 - to create and extracts __tar__ archives in __UStar__ format.
@@ -60,7 +66,7 @@ Create a __tar__ Buffer given a list of entry paths and a base directory.
 This is useful if you want to precise the tar content. 
 
 ```JavaScript
-const {getEntryPaths, getEntryStats, create} = require('@popovmp/tar')
+const {getEntryStats, create} = require('@popovmp/tar')
 
 const baseDir    = './base'
 const entryPaths = [
@@ -76,6 +82,25 @@ const tarball    = create(baseDir, entryStats)
 // Do something with the tarbal
 ```
 
-The `getEntryStats` method reads information for the given entries - files or directories.
+### Get entry paths
 
-We can get a list of all entries with `getEntryPaths`
+Read all entry pats of a target directory.
+
+It is useful if you want to manually add or remove paths to archive.
+
+```JavaScript
+const {getEntryPaths} = require('@popovmp/tar')
+
+const target     = './path/to/stuff'
+const entryPaths = getEntryPaths(target)
+
+console.log(entryPaths.join('\n'))    
+
+/* 
+"stuff/"
+"stuff/hello.txt"
+"stuff/inner/"
+"stuff/inner/other.bin"
+*/
+
+```
