@@ -1,17 +1,14 @@
 {
-  "name": "@popovmp/utar",
+  "name": "@popovmp/tar",
   "version": "1.0.0",
-  "description": "Extract POSIX TAR archives in Nodejs without dependencies",
+  "description": "Creates or extract TAR archives in Nodejs without dependencies.",
   "main": "index.js",
   "directories": {
     "test": "test"
   },
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
   "repository": {
     "type": "git",
-    "url": "git@github.com:PopovMP/utar.git"
+    "url": "git@github.com:PopovMP/tar.git"
   },
   "keywords": [
     "tar",
@@ -19,9 +16,9 @@
     "archive"
   ],
   "author": "Popov",
-  "license": "ISC",
+  "license": "MIT",
   "bugs": {
-    "url": "https://github.com/PopovMP/utar/issues"
+    "url": "https://github.com/PopovMP/tar/issues"
   },
-  "homepage": "https://github.com/PopovMP/utar#readme"
+  "homepage": "https://github.com/PopovMP/tar#readme"
 }
