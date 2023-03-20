@@ -1,6 +1,6 @@
 {
   "name": "@popovmp/tar",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Creates or extract TAR archives in Nodejs without dependencies.",
   "main": "index.js",
   "directories": {
