@@ -1,7 +1,7 @@
 'use strict'
 
-const {join}  = require('node:path')
-const {existsSync, mkdirSync, readFileSync, writeFileSync} = require('node:fs')
+const {join, dirname, basename, sep}  = require('node:path')
+const {existsSync, mkdirSync, opendirSync, statSync, readFileSync, writeFileSync} = require('node:fs')
 
 /**
  * @typedef {NodeModule}
@@ -9,6 +9,16 @@ const {existsSync, mkdirSync, readFileSync, writeFileSync} = require('node:fs')
  * Wikipedia: tar (computing) : https://en.wikipedia.org/wiki/Tar_(computing)
  * GNU: Basic Tar Format: https://www.gnu.org/software/tar/manual/html_node/Standard.html
  * IBM zOS: tar - Format of tar archives: https://www.ibm.com/docs/en/zos/2.5.0?topic=formats-tar-format-tar-archives
+ */
+
+/**
+ * @typedef {Object} EntryStats
+ *
+ * @property {string} name     - entry name
+ * @property {string} typeflag - '0' - file, '5' - directory
+ * @property {number} size     - entry size
+ * @property {number} mtime    - modify time
+ * @property {string} prefix   - prefix
  */
 
 /**
@@ -74,6 +84,49 @@ const REG_TYPE         = '0'
 const DIR_TYPE         = '5'
 const CHECK_SUM_OFFSET = 148
 const CHECK_SUM_LENGTH =   8
+
+/**
+ * Creates a tar archive at 'tarPath' from the 'target'.
+ * The 'target' can be a directory or a single file.
+ *
+ * @param {string} tarPath - path to the tar file
+ * @param {string} target  - path to a file or a directory to archive
+ *
+ * @return {void}
+ */
+function createArchive(tarPath, target)
+{
+	if (!existsSync(target))
+		throw new Error(`cannot open directory: ${target}`)
+
+	const baseDir    = dirname(target)
+	const entryPaths = getEntryPaths(target)
+	const entryStats = getEntryStats(baseDir, entryPaths)
+	const tarball    = create(baseDir, entryStats)
+
+	writeFileSync(tarPath, tarball)
+}
+
+/**
+ * Extracts all entries from a tar archive at 'tarPath' to a 'destination' directory.
+ *
+ * @param {string} tarPath     - path to the tar archive
+ * @param {string} destination - path to destination directory
+ *
+ * @return {void}
+ */
+function extractArchive(tarPath, destination)
+{
+	if (!existsSync(tarPath))
+		throw new Error(`cannot find tar archive: ${tarPath}`)
+
+	if (!existsSync(destination))
+		throw new Error(`cannot open destination directory: ${destination}`)
+
+	const tarball = readFileSync(tarPath)
+
+	extract(tarball, destination)
+}
 
 /**
  * Reads headers from a tarball
@@ -151,7 +204,7 @@ function parseFiledValue(tar, offset, field)
  * Gets the header's checksum sum
  *
  * @param {Buffer} tar
- * @param {number} offset
+ * @param {number} offset - header offset
  *
  * @return {number}
  */
@@ -316,8 +369,134 @@ function setAscii(tar, offset, text)
 		tar.writeInt8(text.charCodeAt(i), offset+i)
 }
 
+/**
+ * Takes a path to a file or a directory.
+ * Collects stats for all inner files and dirs.
+ *
+ * @param {string} target - path to file or dir to be archived
+ *
+ * @return {string[]}
+ */
+function getEntryPaths(target)
+{
+	const stats = statSync(target)
+	if (stats.isFile())
+		return [basename(target)]
+
+	const /** @type {string[]} */ entries = []
+	readDirLoop(dirname(target), basename(target), entries)
+
+	return entries
+}
+
+/**
+ * Loops in the target directory and collects the entries
+ *
+ * @param {string} baseDir    - parent dir of the dir being archived
+ * @param {string} currentDir - path to current dir
+ * @param {string[]} acc      - list of all entry names
+ *
+ * @return {void}
+ */
+function readDirLoop(baseDir, currentDir, acc)
+{
+	const /** @type {string[]} */ innerDirs = []
+	const /** @type {string[]} */ filePaths = []
+
+	// Look inside current dir
+	const /** @type {Dir}    */ dir = opendirSync(join(baseDir, currentDir))
+	let   /** @type {Dirent} */ dirent
+	while ((dirent = dir.readSync()) !== null) {
+		if (dirent.isDirectory())
+			innerDirs.push(dirent.name)
+		else
+			filePaths.push(join(currentDir, dirent.name))
+	}
+	dir.closeSync()
+
+	// Add current dir
+	acc.push(join(currentDir, sep))
+
+	// Add the inner files
+	filePaths.sort()
+	for (const file of filePaths)
+		acc.push(file)
+
+	// Loop over the inner dirs
+	innerDirs.sort()
+	for (const innerDir of innerDirs)
+		readDirLoop(baseDir, join(currentDir, innerDir), acc)
+}
+
+/**
+ * Gets stats for the given entries
+ *
+ * @param {string}   baseDir - path to the parent directory
+ * @param {string[]} entryPaths
+ *
+ * @return {EntryStats[]}
+ */
+function getEntryStats(baseDir, entryPaths)
+{
+	return entryPaths.map(path => {
+		const entryPath      = join(baseDir, path)
+		const stats          = statSync(entryPath)
+		const {name, prefix} = getNamePrefix(path)
+		const isDir          = entryPath.endsWith(sep)
+
+		return {
+			name    : name,
+			typeflag: isDir ? '5' : '0',
+			size    : isDir ? 0 : stats.size,
+			mtime   : +stats.mtime,
+			prefix  : prefix,
+		}
+	})
+}
+
+/**
+ * Splits long paths to name and prefix.
+ *
+ * @param {string} path
+ *
+ * @return {{name: string, prefix: string}}
+ */
+function getNamePrefix(path)
+{
+	if (path.length <= 100)
+		return {name: path, prefix: ''}
+
+	if (path.length > 255)
+		throw new Error(`path is longer than 255 characters: ${path}`)
+
+	const pathParts = path.split(sep)
+
+	let /** @type {string} */ name   = ''
+	let /** @type {string} */ prefix = ''
+
+	for (let i = pathParts.length-1; i >= 0; --i) {
+		let part = pathParts[i]
+
+		if (name.length + part.length + 1 > 100) {
+			prefix = pathParts.slice(0, i+1).join(sep)
+			break
+		}
+
+		name = join(part, name)
+	}
+
+	if (name.length === 0 || name.length > 100 || prefix.length > 155)
+		throw new Error(`cannot split the path to 100 + 155 characters: ${path}`)
+
+	return {name, prefix}
+}
+
 module.exports = {
-	readHeaders,
-	extract,
 	create,
+	createArchive,
+	extract,
+	extractArchive,
+	getEntryPaths,
+	getEntryStats,
+	readHeaders,
 }
