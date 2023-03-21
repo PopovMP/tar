@@ -1,12 +1,14 @@
 # tar
 
-A Nodejs utility for creating and extracting __tar__ archives.
+A Nodejs utility for creating and extracting __tar__ archives programmatically.
 
 ## Purpose
 
 To be used programmatically for creating and extracting updates in tar format.
 
 The created tar can be compressed or decompressed by the Nodejs zlib. 
+
+__tar__ create archive in `POSIX 1003.1-1988 (ustar)` format.
 
 ## Goals
 
@@ -67,6 +69,7 @@ This is useful if you want to precise the tar content.
 
 ```JavaScript
 const {getEntryStats, create} = require('@popovmp/tar')
+const {gzipSync} = require('node:zlib')
 
 const baseDir    = './base'
 const entryPaths = [
@@ -78,8 +81,9 @@ const entryPaths = [
 
 const entryStats = getEntryStats(baseDir, entryPaths)
 const tarball    = create(baseDir, entryStats)
+const tarGz      = gzipSync(tarball)
 
-// Do something with the tarbal
+// Save tarGz to file or send it via network.
 ```
 
 ### Get entry paths
@@ -102,5 +106,4 @@ console.log(entryPaths.join('\n'))
 "stuff/inner/"
 "stuff/inner/other.bin"
 */
-
 ```
