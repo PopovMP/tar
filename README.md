@@ -50,12 +50,13 @@ extractArchive(tarPath, destination)
 
 ### Extract a Buffer
 
-`tarball` is a `Buffer`. It can be read from a file or received by a TCP request.
+You can extract a __tar__ buffer to a destination directory.
+This method is useful when you acquire the tar buffer from a network request.
 
 ```JavaScript
-const {extractArchive} = require('@popovmp/tar')
+const {extract} = require('@popovmp/tar')
 
-const tarball     = getBufferSomehow()
+const tarball     = getTarBufferSomehow()
 const destination = './destination'
 
 extract(tarball, destination)
