@@ -51,7 +51,7 @@ const {existsSync, mkdirSync, opendirSync, statSync, readFileSync, writeFileSync
  */
 
 /**
- * @typedef {Object} TarHeaderField
+ * @typedef {Object} HeaderField
  *
  * @property {string} name
  * @property {number} offset
@@ -59,31 +59,29 @@ const {existsSync, mkdirSync, opendirSync, statSync, readFileSync, writeFileSync
  * @property {string} encoding
  */
 
-/** @type {TarHeaderField[]} */
-const HEADER_FIELDS = [
-	{name: 'name'    , offset:   0, length: 100, encoding: 'ascii'},
-	{name: 'mode'    , offset: 100, length:   8, encoding: 'octal'},
-	{name: 'uid'     , offset: 108, length:   8, encoding: 'octal'},
-	{name: 'gid'     , offset: 116, length:   8, encoding: 'octal'},
-	{name: 'size'    , offset: 124, length:  12, encoding: 'octal'},
-	{name: 'mtime'   , offset: 136, length:  12, encoding: 'octal'},
-	{name: 'checksum', offset: 148, length:   8, encoding: 'octal'},
-	{name: 'typeflag', offset: 156, length:   1, encoding: 'ascii'},
-	{name: 'linkname', offset: 157, length: 100, encoding: 'ascii'},
-	{name: 'magic'   , offset: 257, length:   6, encoding: 'ascii'},
-	{name: 'version' , offset: 263, length:   2, encoding: 'ascii'},
-	{name: 'uname'   , offset: 265, length:  32, encoding: 'ascii'},
-	{name: 'gname'   , offset: 297, length:  32, encoding: 'ascii'},
-	{name: 'devmajor', offset: 329, length:   8, encoding: 'octal'},
-	{name: 'devminor', offset: 337, length:   8, encoding: 'octal'},
-	{name: 'prefix'  , offset: 345, length: 155, encoding: 'ascii'},
-]
+/** @type { Record<string, HeaderField> } */
+const FIELDS = {
+	name:     {name: 'name',     offset:   0, length: 100, encoding: 'ascii'},
+	mode:     {name: 'mode',     offset: 100, length:   8, encoding: 'octal'},
+	uid:      {name: 'uid',      offset: 108, length:   8, encoding: 'octal'},
+	gid:      {name: 'gid',      offset: 116, length:   8, encoding: 'octal'},
+	size:     {name: 'size',     offset: 124, length:  12, encoding: 'octal'},
+	mtime:    {name: 'mtime',    offset: 136, length:  12, encoding: 'octal'},
+	checksum: {name: 'checksum', offset: 148, length:   8, encoding: 'octal'},
+	typeflag: {name: 'typeflag', offset: 156, length:   1, encoding: 'ascii'},
+	linkname: {name: 'linkname', offset: 157, length: 100, encoding: 'ascii'},
+	magic:    {name: 'magic',    offset: 257, length:   6, encoding: 'ascii'},
+	version:  {name: 'version',  offset: 263, length:   2, encoding: 'ascii'},
+	uname:    {name: 'uname',    offset: 265, length:  32, encoding: 'ascii'},
+	gname:    {name: 'gname',    offset: 297, length:  32, encoding: 'ascii'},
+	devmajor: {name: 'devmajor', offset: 329, length:   8, encoding: 'octal'},
+	devminor: {name: 'devminor', offset: 337, length:   8, encoding: 'octal'},
+	prefix:   {name: 'prefix',   offset: 345, length: 155, encoding: 'ascii'},
+}
 
 const BLOCK_LENGTH     = 512
-const REG_TYPE         = '0'
+const FILE_TYPE        = '0'
 const DIR_TYPE         = '5'
-const CHECK_SUM_OFFSET = 148
-const CHECK_SUM_LENGTH =   8
 
 /**
  * Creates a tar archive at 'tarPath' from the 'target'.
@@ -144,7 +142,7 @@ function readHeaders(tar)
 		/** @type {TarHeader} */
 		const header = parseHeader(tar, offset)
 
-		if (header.typeflag !== REG_TYPE && header.typeflag !== DIR_TYPE)
+		if (header.typeflag !== FILE_TYPE && header.typeflag !== DIR_TYPE)
 			break // Reached the final empty block
 
 		const checksum = getCheckSum(tar, offset)
@@ -184,9 +182,8 @@ function parseHeader(tar, offset)
 {
 	/** @type {TarHeader} */
 	const header = {}
-
-	for (const /** @type {TarHeaderField} */ field of HEADER_FIELDS)
-		header[field.name] = parseFiledValue(tar, offset, field)
+	for (const name of Object.keys(FIELDS))
+		header[name] = parseFieldValue(tar, offset, FIELDS[name])
 
 	return header
 }
@@ -194,13 +191,16 @@ function parseHeader(tar, offset)
 /**
  * Parses a header field
  *
- * @param {Buffer}         tar
- * @param {number}         offset
- * @param {TarHeaderField} field
+ * It reads bytes until field's length or a null.
+ * Then, it casts the value to string or a number,
+ *
+ * @param {Buffer}      tar
+ * @param {number}      offset
+ * @param {HeaderField} field
  *
  * @return {number|string}
  */
-function parseFiledValue(tar, offset, field)
+function parseFieldValue(tar, offset, field)
 {
 	const from = offset + field.offset
 	let   to   = from
@@ -213,7 +213,8 @@ function parseFiledValue(tar, offset, field)
 }
 
 /**
- * Gets the header's checksum sum
+ * Gets the header's checksum sum.
+ * The checksum field is considered as filled with spaces (ascii 32)
  *
  * @param {Buffer} tar
  * @param {number} offset - header offset
@@ -222,13 +223,12 @@ function parseFiledValue(tar, offset, field)
  */
 function getCheckSum(tar, offset)
 {
-	let sum = 0
+	const checkSumStart = FIELDS['checksum'].offset
+	const checkSumEnd   = FIELDS['checksum'].offset + FIELDS['checksum'].length - 1
 
-	for (let i = 0; i < BLOCK_LENGTH; ++i) {
-		sum += i >= CHECK_SUM_OFFSET && i < CHECK_SUM_OFFSET + CHECK_SUM_LENGTH
-			? 32 // The checksum field is considered as filled with spaces (ascii 32)
-			: tar[offset + i]
-	}
+	let sum = 0
+	for (let i = 0; i < BLOCK_LENGTH; ++i)
+		sum += i < checkSumStart || i > checkSumEnd ? tar[offset + i] : 32
 
 	return sum
 }
@@ -255,7 +255,7 @@ function extract(tar, destination)
 				if (!existsSync(entryPath))
 					mkdirSync(entryPath)
 				break
-			case REG_TYPE: // Create/overwrite file
+			case FILE_TYPE: // Create/overwrite file
 				const entryOffset = headerOffset + BLOCK_LENGTH
 				const content     = tar.subarray(entryOffset, entryOffset + header.size)
 				writeFileSync(entryPath, content)
@@ -286,7 +286,7 @@ function create(baseDir, entryStats)
 	for (const stat of entryStats) {
 		setHeader(tar, offset, stat)
 
-		if (stat.typeflag === REG_TYPE) {
+		if (stat.typeflag === FILE_TYPE) {
 			const entryPath = join(baseDir, stat.prefix, stat.name)
 			tar.set(readFileSync(entryPath), offset + BLOCK_LENGTH)
 		}
@@ -325,36 +325,23 @@ function calculateTarSize(entryStats)
  */
 function setHeader(tar, offset, stats)
 {
-	// name
-	setAscii(tar, offset, stats.name.replaceAll('\\', '/'))
-	// mode
-	setAscii(tar, offset + 100, '0000775')
-	// uid
-	setAscii(tar, offset + 108, '0000000')
-	// gid
-	setAscii(tar, offset + 116, '0000000')
-	// size
-	setOctal(tar, offset + 124, stats.size, 11)
-	// mtime
-	setOctal(tar, offset + 136, Math.round(stats.mtime/1000), 11)
-	// checksum - prefill
-	setAscii(tar, offset + 148, '        ')
-	// typeflag
-	setAscii(tar, offset + 156, stats.typeflag)
-	// magic
-	setAscii(tar, offset + 257, 'ustar')
-	// version
-	setAscii(tar, offset + 263, '00')
-	// devmajor
-	setAscii(tar, offset + 329, '0000000')
-	// devminor
-	setAscii(tar, offset + 337, '0000000')
-	// prefix
-	setAscii(tar, offset + 345, stats.prefix.replaceAll('\\', '/'))
+	setAscii(tar, offset + FIELDS['name'    ].offset, stats.name.replaceAll('\\', '/'))
+	setAscii(tar, offset + FIELDS['mode'    ].offset, '0000775')
+	setAscii(tar, offset + FIELDS['uid'     ].offset, '0000000')
+	setAscii(tar, offset + FIELDS['gid'     ].offset, '0000000')
+	setOctal(tar, offset + FIELDS['size'    ].offset, stats.size, 11)
+	setOctal(tar, offset + FIELDS['mtime'   ].offset, Math.round(stats.mtime/1000), 11)
+	setAscii(tar, offset + FIELDS['checksum'].offset, '        ')
+	setAscii(tar, offset + FIELDS['typeflag'].offset, stats.typeflag)
+	setAscii(tar, offset + FIELDS['magic'   ].offset, 'ustar')
+	setAscii(tar, offset + FIELDS['version' ].offset, '00')
+	setAscii(tar, offset + FIELDS['devmajor'].offset, '0000000')
+	setAscii(tar, offset + FIELDS['devminor'].offset, '0000000')
+	setAscii(tar, offset + FIELDS['prefix'  ].offset, stats.prefix.replaceAll('\\', '/'))
 
 	// Set final checksum
 	const checksum = getCheckSum(tar, offset)
-	setOctal(tar, offset + 148, checksum, 6)
+	setOctal(tar, offset + FIELDS['checksum'].offset, checksum, 6)
 	tar.writeUInt8(0, offset + 154)
 }
 
@@ -387,8 +374,7 @@ function setAscii(tar, offset, text)
 }
 
 /**
- * Takes a path to a file or a directory.
- * Collects stats for all inner files and dirs.
+ * Gets a list of all inner directories and files.
  *
  * @param {string} target - path to file or dir to be archived
  *
@@ -463,7 +449,7 @@ function getEntryStats(baseDir, entryPaths)
 
 		return {
 			name    : name,
-			typeflag: isDir ? DIR_TYPE : REG_TYPE,
+			typeflag: isDir ? DIR_TYPE : FILE_TYPE,
 			size    : isDir ? 0 : stats.size,
 			mtime   : stats.mtime.getTime(),
 			prefix  : prefix,
