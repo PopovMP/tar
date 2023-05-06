@@ -1,6 +1,6 @@
 'use strict'
 
-const {join} = require('node:path')
+const {join} = require('path')
 
 const {createArchive} = require('../index')
 

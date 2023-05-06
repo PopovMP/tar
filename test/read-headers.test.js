@@ -1,8 +1,8 @@
 'use strict'
 
-const {equal}        = require('node:assert')
-const {readFileSync} = require('node:fs')
-const {join}         = require('node:path')
+const {equal}        = require('assert')
+const {readFileSync} = require('fs')
+const {join}         = require('path')
 const {readHeaders}  = require('../index')
 
 const filepath = join(__dirname, 'data/holder.tar')

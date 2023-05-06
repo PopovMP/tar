@@ -1,7 +1,7 @@
 'use strict'
 
-const {equal}        = require('node:assert')
-const {join} = require('node:path')
+const {equal}        = require('assert')
+const {join} = require('path')
 
 const {getEntryPaths, getEntryStats} = require('../index')
 

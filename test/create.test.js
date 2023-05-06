@@ -1,7 +1,7 @@
 'use strict'
 
-const {join} = require('node:path')
-const {writeFileSync} = require('node:fs')
+const {join} = require('path')
+const {writeFileSync} = require('fs')
 
 const {getEntryPaths, getEntryStats, create} = require('../index')
 

@@ -1,7 +1,7 @@
 'use strict'
 
-const {join, dirname, basename, sep}  = require('node:path')
-const {existsSync, mkdirSync, opendirSync, statSync, readFileSync, writeFileSync} = require('node:fs')
+const {join, dirname, basename, sep} = require('path')
+const {existsSync, mkdirSync, opendirSync, statSync, readFileSync, writeFileSync} = require('fs')
 
 /**
  * @typedef {NodeModule}
