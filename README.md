@@ -27,12 +27,12 @@ Archive a complete directory to a tar archive.
 Here `target` can be a path to a directory or a single file. 
 
 ```JavaScript
-const {createArchive} = require('@popovmp/tar')
+const {createArchive} = require("@popovmp/tar");
 
-const tarPath = 'stuff.tar'
-const target  = './path/to/stuff'
+const tarPath = "stuff.tar";
+const target  = "./path/to/stuff";
 
-createArchive(tarPath, target)
+createArchive(tarPath, target);
 ```
 
 ### Extract all
@@ -40,12 +40,12 @@ createArchive(tarPath, target)
 Extract a __tar__ archive from `tarPath` into the `destination` directory. 
 
 ```JavaScript
-const {extractArchive} = require('@popovmp/tar')
+const {extractArchive} = require("@popovmp/tar");
 
-const tarPath     = 'stuff.tar'
-const destination = './destination'
+const tarPath     = "stuff.tar";
+const destination = "./destination";
 
-extractArchive(tarPath, destination)
+extractArchive(tarPath, destination);
 ```
 
 ### Extract a Buffer
@@ -54,12 +54,12 @@ You can extract a __tar__ buffer to a destination directory.
 This method is useful when you acquire the tar buffer from a network request.
 
 ```JavaScript
-const {extract} = require('@popovmp/tar')
+const {extract} = require("@popovmp/tar");
 
-const tarball     = getTarBufferSomehow()
-const destination = './destination'
+const tarball     = getTarBufferSomehow();
+const destination = "./destination";
 
-extract(tarball, destination)
+extract(tarball, destination);
 ```
 
 ### Create tar by entry paths
@@ -69,20 +69,20 @@ Create a __tar__ Buffer given a list of entry paths and a base directory.
 This is useful if you want to precise the tar content. 
 
 ```JavaScript
-const {getEntryStats, create} = require('@popovmp/tar')
-const {gzipSync} = require('node:zlib')
+const {getEntryStats, create} = require("@popovmp/tar");
+const {gzipSync} = require("node:zlib");
 
-const baseDir    = './base'
+const baseDir    = "./base";
 const entryPaths = [
-	'stuff/',
-	'stuff/hello.txt',
-	'stuff/inner/',
-	'stuff/inner/other.bin',
-]
+	"stuff/",
+	"stuff/hello.txt",
+	"stuff/inner/",
+	"stuff/inner/other.bin",
+];
 
-const entryStats = getEntryStats(baseDir, entryPaths)
-const tarball    = create(baseDir, entryStats)
-const tarGz      = gzipSync(tarball)
+const entryStats = getEntryStats(baseDir, entryPaths);
+const tarball    = create(baseDir, entryStats);
+const tarGz      = gzipSync(tarball);
 
 // Save tarGz to file or send it via network.
 ```
@@ -94,12 +94,12 @@ Read all entry pats of a target directory.
 It is useful if you want to manually add or remove paths to archive.
 
 ```JavaScript
-const {getEntryPaths} = require('@popovmp/tar')
+const {getEntryPaths} = require("@popovmp/tar");
 
-const target     = './path/to/stuff'
-const entryPaths = getEntryPaths(target)
+const target     = "./path/to/stuff";
+const entryPaths = getEntryPaths(target);
 
-console.log(entryPaths.join('\n'))    
+console.log(entryPaths.join("\n"));    
 
 /* 
 "stuff/"

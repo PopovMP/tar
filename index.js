@@ -1,7 +1,7 @@
-'use strict'
+"use strict";
 
-const {join, dirname, basename, sep} = require('path')
-const {existsSync, mkdirSync, opendirSync, statSync, readFileSync, writeFileSync} = require('fs')
+const {join, dirname, basename, sep} = require("path");
+const {existsSync, mkdirSync, opendirSync, statSync, readFileSync, writeFileSync} = require("fs");
 
 /**
  * @typedef {NodeModule}
@@ -61,27 +61,27 @@ const {existsSync, mkdirSync, opendirSync, statSync, readFileSync, writeFileSync
 
 /** @type { Record<string, HeaderField> } */
 const FIELDS = {
-	name:     {name: 'name',     offset:   0, length: 100, encoding: 'ascii'},
-	mode:     {name: 'mode',     offset: 100, length:   8, encoding: 'octal'},
-	uid:      {name: 'uid',      offset: 108, length:   8, encoding: 'octal'},
-	gid:      {name: 'gid',      offset: 116, length:   8, encoding: 'octal'},
-	size:     {name: 'size',     offset: 124, length:  12, encoding: 'octal'},
-	mtime:    {name: 'mtime',    offset: 136, length:  12, encoding: 'octal'},
-	checksum: {name: 'checksum', offset: 148, length:   8, encoding: 'octal'},
-	typeflag: {name: 'typeflag', offset: 156, length:   1, encoding: 'ascii'},
-	linkname: {name: 'linkname', offset: 157, length: 100, encoding: 'ascii'},
-	magic:    {name: 'magic',    offset: 257, length:   6, encoding: 'ascii'},
-	version:  {name: 'version',  offset: 263, length:   2, encoding: 'ascii'},
-	uname:    {name: 'uname',    offset: 265, length:  32, encoding: 'ascii'},
-	gname:    {name: 'gname',    offset: 297, length:  32, encoding: 'ascii'},
-	devmajor: {name: 'devmajor', offset: 329, length:   8, encoding: 'octal'},
-	devminor: {name: 'devminor', offset: 337, length:   8, encoding: 'octal'},
-	prefix:   {name: 'prefix',   offset: 345, length: 155, encoding: 'ascii'},
-}
+    name:     {name: "name",     offset:   0, length: 100, encoding: "ascii"},
+    mode:     {name: "mode",     offset: 100, length:   8, encoding: "octal"},
+    uid:      {name: "uid",      offset: 108, length:   8, encoding: "octal"},
+    gid:      {name: "gid",      offset: 116, length:   8, encoding: "octal"},
+    size:     {name: "size",     offset: 124, length:  12, encoding: "octal"},
+    mtime:    {name: "mtime",    offset: 136, length:  12, encoding: "octal"},
+    checksum: {name: "checksum", offset: 148, length:   8, encoding: "octal"},
+    typeflag: {name: "typeflag", offset: 156, length:   1, encoding: "ascii"},
+    linkname: {name: "linkname", offset: 157, length: 100, encoding: "ascii"},
+    magic:    {name: "magic",    offset: 257, length:   6, encoding: "ascii"},
+    version:  {name: "version",  offset: 263, length:   2, encoding: "ascii"},
+    uname:    {name: "uname",    offset: 265, length:  32, encoding: "ascii"},
+    gname:    {name: "gname",    offset: 297, length:  32, encoding: "ascii"},
+    devmajor: {name: "devmajor", offset: 329, length:   8, encoding: "octal"},
+    devminor: {name: "devminor", offset: 337, length:   8, encoding: "octal"},
+    prefix:   {name: "prefix",   offset: 345, length: 155, encoding: "ascii"},
+};
 
-const BLOCK_LENGTH     = 512
-const FILE_TYPE        = '0'
-const DIR_TYPE         = '5'
+const BLOCK_LENGTH = 512;
+const FILE_TYPE    = "0";
+const DIR_TYPE     = "5";
 
 /**
  * Creates a tar archive at 'tarPath' from the 'target'.
@@ -92,17 +92,17 @@ const DIR_TYPE         = '5'
  *
  * @return {void}
  */
-function createArchive(tarPath, target)
-{
-	if (!existsSync(target))
-		throw new Error(`cannot open directory: ${target}`)
+function createArchive(tarPath, target) {
+    if (!existsSync(target)) {
+        throw new Error(`cannot open directory: ${target}`);
+    }
 
-	const /** @type {string}       */ baseDir    = dirname(target)
-	const /** @type {string[]}     */ entryPaths = getEntryPaths(target)
-	const /** @type {EntryStats[]} */ entryStats = getEntryStats(baseDir, entryPaths)
-	const /** @type {Buffer}       */ tarball    = create(baseDir, entryStats)
+    const /** @type {string}       */ baseDir    = dirname(target);
+    const /** @type {string[]}     */ entryPaths = getEntryPaths(target);
+    const /** @type {EntryStats[]} */ entryStats = getEntryStats(baseDir, entryPaths);
+    const /** @type {Buffer}       */ tarball    = create(baseDir, entryStats);
 
-	writeFileSync(tarPath, tarball)
+    writeFileSync(tarPath, tarball);
 }
 
 /**
@@ -113,17 +113,18 @@ function createArchive(tarPath, target)
  *
  * @return {void}
  */
-function extractArchive(tarPath, destination)
-{
-	if (!existsSync(tarPath))
-		throw new Error(`cannot find tar archive: ${tarPath}`)
+function extractArchive(tarPath, destination) {
+    if (!existsSync(tarPath)) {
+        throw new Error(`cannot find tar archive: ${tarPath}`);
+    }
 
-	if (!existsSync(destination))
-		throw new Error(`cannot open destination directory: ${destination}`)
+    if (!existsSync(destination)) {
+        throw new Error(`cannot open destination directory: ${destination}`);
+    }
 
-	const /** @type {Buffer} */ tarball = readFileSync(tarPath)
+    const /** @type {Buffer} */ tarball = readFileSync(tarPath);
 
-	extract(tarball, destination)
+    extract(tarball, destination);
 }
 
 /**
@@ -133,29 +134,30 @@ function extractArchive(tarPath, destination)
  *
  * @return {TarHeader[]}
  */
-function readHeaders(tar)
-{
-	const headers = []
+function readHeaders(tar) {
+    const headers = [];
 
-	let offset = 0
-	while (true) {
-		/** @type {TarHeader} */
-		const header = parseHeader(tar, offset)
+    let offset = 0;
+    while (true) {
+        /** @type {TarHeader} */
+        const header = parseHeader(tar, offset);
 
-		if (header.typeflag !== FILE_TYPE && header.typeflag !== DIR_TYPE)
-			break // Reached the final empty block
+        if (header.typeflag !== FILE_TYPE && header.typeflag !== DIR_TYPE) {
+            break;
+        } // Reached the final empty block
 
-		const checksum = getCheckSum(tar, offset)
-		if (checksum !== header.checksum)
-			throw new Error(`wrong checksum of: ${header.name}`)
+        const checksum = getCheckSum(tar, offset);
+        if (checksum !== header.checksum) {
+            throw new Error(`wrong checksum of: ${header.name}`);
+        }
 
-		headers.push(header)
+        headers.push(header);
 
-		// Jump to the next header
-		offset += getOffsetDelta(header.size)
-	}
+        // Jump to the next header
+        offset += getOffsetDelta(header.size);
+    }
 
-	return headers
+    return headers;
 }
 
 /**
@@ -165,9 +167,8 @@ function readHeaders(tar)
  *
  * @return {number}
  */
-function getOffsetDelta(size)
-{
-	return (Math.ceil(size / BLOCK_LENGTH) + 1) * BLOCK_LENGTH
+function getOffsetDelta(size) {
+    return (Math.ceil(size / BLOCK_LENGTH) + 1) * BLOCK_LENGTH;
 }
 
 /**
@@ -178,14 +179,14 @@ function getOffsetDelta(size)
  *
  * @return {TarHeader}
  */
-function parseHeader(tar, offset)
-{
-	/** @type {TarHeader} */
-	const header = {}
-	for (const name of Object.keys(FIELDS))
-		header[name] = parseFieldValue(tar, offset, FIELDS[name])
+function parseHeader(tar, offset) {
+    /** @type {TarHeader} */
+    const header = {};
+    for (const name of Object.keys(FIELDS)) {
+        header[name] = parseFieldValue(tar, offset, FIELDS[name]);
+    }
 
-	return header
+    return header;
 }
 
 /**
@@ -200,16 +201,16 @@ function parseHeader(tar, offset)
  *
  * @return {number|string}
  */
-function parseFieldValue(tar, offset, field)
-{
-	const from = offset + field.offset
-	let   to   = from
-	while (tar[to] > 0 && to < from + field.length)
-		to += 1
+function parseFieldValue(tar, offset, field) {
+    const from = offset + field.offset;
+    let to = from;
+    while (tar[to] > 0 && to < from + field.length) {
+        to += 1;
+    }
 
-	const textValue = tar.subarray(from, to).toString()
+    const textValue = tar.subarray(from, to).toString();
 
-	return field.encoding === 'octal' ? parseInt(textValue, 8) : textValue
+    return field.encoding === "octal" ? parseInt(textValue, 8) : textValue;
 }
 
 /**
@@ -221,16 +222,16 @@ function parseFieldValue(tar, offset, field)
  *
  * @return {number}
  */
-function getCheckSum(tar, offset)
-{
-	const checkSumStart = FIELDS['checksum'].offset
-	const checkSumEnd   = FIELDS['checksum'].offset + FIELDS['checksum'].length - 1
+function getCheckSum(tar, offset) {
+    const checkSumStart = FIELDS["checksum"].offset;
+    const checkSumEnd   = FIELDS["checksum"].offset + FIELDS["checksum"].length - 1;
 
-	let sum = 0
-	for (let i = 0; i < BLOCK_LENGTH; ++i)
-		sum += i < checkSumStart || i > checkSumEnd ? tar[offset + i] : 32
+    let sum = 0;
+    for (let i = 0; i < BLOCK_LENGTH; i += 1) {
+        sum += i < checkSumStart || i > checkSumEnd ? tar[offset + i] : 32;
+    }
 
-	return sum
+    return sum;
 }
 
 /**
@@ -241,32 +242,32 @@ function getCheckSum(tar, offset)
  *
  * @return {void}
  */
-function extract(tar, destination)
-{
-	/** @type {TarHeader[]} */
-	const headers = readHeaders(tar)
+function extract(tar, destination) {
+    /** @type {TarHeader[]} */
+    const headers = readHeaders(tar);
 
-	let headerOffset = 0
-	for (const header of headers) {
-		const entryPath = join(destination, header.prefix, header.name)
+    let headerOffset = 0;
+    for (const header of headers) {
+        const entryPath = join(destination, header.prefix, header.name);
 
-		switch (header.typeflag) {
-			case DIR_TYPE: // Create directory if it does not exist
-				if (!existsSync(entryPath))
-					mkdirSync(entryPath)
-				break
-			case FILE_TYPE: // Create/overwrite file
-				const entryOffset = headerOffset + BLOCK_LENGTH
-				const content     = tar.subarray(entryOffset, entryOffset + header.size)
-				writeFileSync(entryPath, content)
-				break
-			default:
-				throw new Error(`not supported entry typeflag: ${header.typeflag}`)
-		}
+        switch (header.typeflag) {
+            case DIR_TYPE: // Create directory if it does not exist
+                if (!existsSync(entryPath)) {
+                    mkdirSync(entryPath);
+                }
+                break;
+            case FILE_TYPE: // Create/overwrite file
+                const entryOffset = headerOffset + BLOCK_LENGTH;
+                const content     = tar.subarray(entryOffset, entryOffset + header.size);
+                writeFileSync(entryPath, content);
+                break;
+            default:
+                throw new Error(`not supported entry typeflag: ${header.typeflag}`);
+        }
 
-		// Jump to the next header
-		headerOffset += getOffsetDelta(header.size)
-	}
+        // Jump to the next header
+        headerOffset += getOffsetDelta(header.size);
+    }
 }
 
 /**
@@ -277,25 +278,24 @@ function extract(tar, destination)
  *
  * @return {Buffer}
  */
-function create(baseDir, entryStats)
-{
-	const size = calculateTarSize(entryStats)
-	const tar  = Buffer.alloc(size)
+function create(baseDir, entryStats) {
+    const size = calculateTarSize(entryStats);
+    const tar  = Buffer.alloc(size);
 
-	let offset = 0
-	for (const stat of entryStats) {
-		setHeader(tar, offset, stat)
+    let offset = 0;
+    for (const stat of entryStats) {
+        setHeader(tar, offset, stat);
 
-		if (stat.typeflag === FILE_TYPE) {
-			const entryPath = join(baseDir, stat.prefix, stat.name)
-			tar.set(readFileSync(entryPath), offset + BLOCK_LENGTH)
-		}
+        if (stat.typeflag === FILE_TYPE) {
+            const entryPath = join(baseDir, stat.prefix, stat.name);
+            tar.set(readFileSync(entryPath), offset + BLOCK_LENGTH);
+        }
 
-		// Jump to the next header
-		offset += getOffsetDelta(stat.size)
-	}
+        // Jump to the next header
+        offset += getOffsetDelta(stat.size);
+    }
 
-	return tar
+    return tar;
 }
 
 /**
@@ -305,13 +305,13 @@ function create(baseDir, entryStats)
  *
  * @return {number}
  */
-function calculateTarSize(entryStats)
-{
-	let size = 2 * BLOCK_LENGTH // Two empty blocks at the end of the tarball
-	for (const stat of entryStats)
-		size += getOffsetDelta(stat.size)
+function calculateTarSize(entryStats) {
+    let size = 2 * BLOCK_LENGTH; // Two empty blocks at the end of the tarball
+    for (const stat of entryStats) {
+        size += getOffsetDelta(stat.size);
+    }
 
-	return size
+    return size;
 }
 
 /**
@@ -323,26 +323,25 @@ function calculateTarSize(entryStats)
  *
  * @return {void}
  */
-function setHeader(tar, offset, stats)
-{
-	setAscii(tar, offset + FIELDS['name'    ].offset, stats.name.replaceAll('\\', '/'))
-	setAscii(tar, offset + FIELDS['mode'    ].offset, '0000775')
-	setAscii(tar, offset + FIELDS['uid'     ].offset, '0000000')
-	setAscii(tar, offset + FIELDS['gid'     ].offset, '0000000')
-	setOctal(tar, offset + FIELDS['size'    ].offset, stats.size, 11)
-	setOctal(tar, offset + FIELDS['mtime'   ].offset, Math.round(stats.mtime/1000), 11)
-	setAscii(tar, offset + FIELDS['checksum'].offset, '        ')
-	setAscii(tar, offset + FIELDS['typeflag'].offset, stats.typeflag)
-	setAscii(tar, offset + FIELDS['magic'   ].offset, 'ustar')
-	setAscii(tar, offset + FIELDS['version' ].offset, '00')
-	setAscii(tar, offset + FIELDS['devmajor'].offset, '0000000')
-	setAscii(tar, offset + FIELDS['devminor'].offset, '0000000')
-	setAscii(tar, offset + FIELDS['prefix'  ].offset, stats.prefix.replaceAll('\\', '/'))
+function setHeader(tar, offset, stats) {
+    setAscii(tar, offset + FIELDS["name"    ].offset, stats.name.replaceAll("\\", "/"));
+    setAscii(tar, offset + FIELDS["mode"    ].offset, "0000775");
+    setAscii(tar, offset + FIELDS["uid"     ].offset, "0000000");
+    setAscii(tar, offset + FIELDS["gid"     ].offset, "0000000");
+    setOctal(tar, offset + FIELDS["size"    ].offset, stats.size, 11);
+    setOctal(tar, offset + FIELDS["mtime"   ].offset, Math.round(stats.mtime / 1000), 11);
+    setAscii(tar, offset + FIELDS["checksum"].offset, "        ");
+    setAscii(tar, offset + FIELDS["typeflag"].offset, stats.typeflag);
+    setAscii(tar, offset + FIELDS["magic"   ].offset, "ustar");
+    setAscii(tar, offset + FIELDS["version" ].offset, "00");
+    setAscii(tar, offset + FIELDS["devmajor"].offset, "0000000");
+    setAscii(tar, offset + FIELDS["devminor"].offset, "0000000");
+    setAscii(tar, offset + FIELDS["prefix"  ].offset, stats.prefix.replaceAll("\\", "/"));
 
-	// Set final checksum
-	const checksum = getCheckSum(tar, offset)
-	setOctal(tar, offset + FIELDS['checksum'].offset, checksum, 6)
-	tar.writeUInt8(0, offset + 154)
+    // Set final checksum
+    const checksum = getCheckSum(tar, offset);
+    setOctal(tar, offset + FIELDS["checksum"].offset, checksum, 6);
+    tar.writeUInt8(0, offset + 154);
 }
 
 /**
@@ -353,10 +352,9 @@ function setHeader(tar, offset, stats)
  * @param {number} val
  * @param {number} len
  */
-function setOctal(tar, offset, val, len)
-{
-	const text = val.toString(8).padStart(len, '0')
-	setAscii(tar, offset, text)
+function setOctal(tar, offset, val, len) {
+    const text = val.toString(8).padStart(len, "0");
+    setAscii(tar, offset, text);
 }
 
 /**
@@ -367,10 +365,10 @@ function setOctal(tar, offset, val, len)
  * @param {string} text
  */
 
-function setAscii(tar, offset, text)
-{
-	for (let i = 0; i < text.length; ++i)
-		tar.writeUInt8(text.charCodeAt(i), offset+i)
+function setAscii(tar, offset, text) {
+    for (let i = 0; i < text.length; i += 1) {
+        tar.writeUInt8(text.charCodeAt(i), offset + i);
+    }
 }
 
 /**
@@ -380,16 +378,16 @@ function setAscii(tar, offset, text)
  *
  * @return {string[]}
  */
-function getEntryPaths(target)
-{
-	const stats = statSync(target)
-	if (stats.isFile())
-		return [basename(target)]
+function getEntryPaths(target) {
+    const stats = statSync(target);
+    if (stats.isFile()) {
+        return [basename(target)];
+    }
 
-	const /** @type {string[]} */ entries = []
-	readDirLoop(dirname(target), basename(target), entries)
+    const /** @type {string[]} */ entries = [];
+    readDirLoop(dirname(target), basename(target), entries);
 
-	return entries
+    return entries;
 }
 
 /**
@@ -401,34 +399,36 @@ function getEntryPaths(target)
  *
  * @return {void}
  */
-function readDirLoop(baseDir, currentDir, acc)
-{
-	const /** @type {string[]} */ innerDirs = []
-	const /** @type {string[]} */ filePaths = []
+function readDirLoop(baseDir, currentDir, acc) {
+    const /** @type {string[]} */ innerDirs = [];
+    const /** @type {string[]} */ filePaths = [];
 
-	// Look inside current dir
-	const /** @type {Dir}    */ dir = opendirSync(join(baseDir, currentDir))
-	let   /** @type {Dirent} */ dirent
-	while ((dirent = dir.readSync()) !== null) {
-		if (dirent.isDirectory())
-			innerDirs.push(dirent.name)
-		else
-			filePaths.push(join(currentDir, dirent.name))
-	}
-	dir.closeSync()
+    // Look inside current dir
+    const /** @type {Dir}    */ dir = opendirSync(join(baseDir, currentDir));
+    let /** @type {Dirent} */ dirent;
+    while ((dirent = dir.readSync()) !== null) {
+        if (dirent.isDirectory()) {
+            innerDirs.push(dirent.name);
+        } else {
+            filePaths.push(join(currentDir, dirent.name));
+        }
+    }
+    dir.closeSync();
 
-	// Add current dir
-	acc.push(join(currentDir, sep))
+    // Add current dir
+    acc.push(join(currentDir, sep));
 
-	// Add the inner files
-	filePaths.sort()
-	for (const file of filePaths)
-		acc.push(file)
+    // Add the inner files
+    filePaths.sort();
+    for (const file of filePaths) {
+        acc.push(file);
+    }
 
-	// Loop over the inner dirs
-	innerDirs.sort()
-	for (const innerDir of innerDirs)
-		readDirLoop(baseDir, join(currentDir, innerDir), acc)
+    // Loop over the inner dirs
+    innerDirs.sort();
+    for (const innerDir of innerDirs) {
+        readDirLoop(baseDir, join(currentDir, innerDir), acc);
+    }
 }
 
 /**
@@ -439,22 +439,21 @@ function readDirLoop(baseDir, currentDir, acc)
  *
  * @return {EntryStats[]}
  */
-function getEntryStats(baseDir, entryPaths)
-{
-	return entryPaths.map(path => {
-		const entryPath      = join(baseDir, path)
-		const stats          = statSync(entryPath)
-		const {name, prefix} = getNamePrefix(path)
-		const isDir          = entryPath.endsWith(sep)
+function getEntryStats(baseDir, entryPaths) {
+    return entryPaths.map(path => {
+        const entryPath = join(baseDir, path);
+        const stats = statSync(entryPath);
+        const {name, prefix} = getNamePrefix(path);
+        const isDir = entryPath.endsWith(sep);
 
-		return {
-			name    : name,
-			typeflag: isDir ? DIR_TYPE : FILE_TYPE,
-			size    : isDir ? 0 : stats.size,
-			mtime   : stats.mtime.getTime(),
-			prefix  : prefix,
-		}
-	})
+        return {
+            name    : name,
+            typeflag: isDir ? DIR_TYPE : FILE_TYPE,
+            size    : isDir ? 0 : stats.size,
+            mtime   : stats.mtime.getTime(),
+            prefix  : prefix,
+        };
+    });
 }
 
 /**
@@ -464,42 +463,44 @@ function getEntryStats(baseDir, entryPaths)
  *
  * @return {{name: string, prefix: string}}
  */
-function getNamePrefix(path)
-{
-	if (path.length <= 100)
-		return {name: path, prefix: ''}
+function getNamePrefix(path) {
+    if (path.length <= 100) {
+        return {name: path, prefix: ""};
+    }
 
-	if (path.length > 255)
-		throw new Error(`path is longer than 255 characters: ${path}`)
+    if (path.length > 255) {
+        throw new Error(`path is longer than 255 characters: ${path}`);
+    }
 
-	const pathParts = path.split(sep)
+    const pathParts = path.split(sep);
 
-	let /** @type {string} */ name   = ''
-	let /** @type {string} */ prefix = ''
+    let /** @type {string} */ name = "";
+    let /** @type {string} */ prefix = "";
 
-	for (let i = pathParts.length-1; i >= 0; --i) {
-		let part = pathParts[i]
+    for (let i = pathParts.length - 1; i >= 0; i -= 1) {
+        let part = pathParts[i];
 
-		if (name.length + part.length + 1 > 100) {
-			prefix = pathParts.slice(0, i+1).join(sep)
-			break
-		}
+        if (name.length + part.length + 1 > 100) {
+            prefix = pathParts.slice(0, i + 1).join(sep);
+            break;
+        }
 
-		name = join(part, name)
-	}
+        name = join(part, name);
+    }
 
-	if (name.length === 0 || name.length > 100 || prefix.length > 155)
-		throw new Error(`cannot split the path to 100 + 155 characters: ${path}`)
+    if (name.length === 0 || name.length > 100 || prefix.length > 155) {
+        throw new Error(`cannot split the path to 100 + 155 characters: ${path}`);
+    }
 
-	return {name, prefix}
+    return {name, prefix};
 }
 
 module.exports = {
-	create,
-	createArchive,
-	extract,
-	extractArchive,
-	getEntryPaths,
-	getEntryStats,
-	readHeaders,
-}
+    create,
+    createArchive,
+    extract,
+    extractArchive,
+    getEntryPaths,
+    getEntryStats,
+    readHeaders,
+};

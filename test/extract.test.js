@@ -1,12 +1,12 @@
-'use strict'
+"use strict";
 
-const {join}         = require('path')
-const {readFileSync} = require('fs')
-const {extract}      = require('../index')
+const {join}         = require("path");
+const {readFileSync} = require("fs");
+const {extract}      = require("../index");
 
-const tarPath = join(__dirname, 'data/holder.tar')
-const tarball = readFileSync(tarPath)
+const tarPath = join(__dirname, "data/holder.tar");
+const tarball = readFileSync(tarPath);
 
-const destination = join(__dirname, 'data')
+const destination = join(__dirname, "data");
 
-extract(tarball, destination)
+extract(tarball, destination);
